@@ -10,6 +10,8 @@
 
 **Drives any Web Component UI from server state alone.**
 
+[![Clojars Project](https://img.shields.io/clojars/v/com.github.avanelsas/barebuild.svg)](https://clojars.org/com.github.avanelsas/barebuild)
+
 **Part of a set.** [BareDOM](https://github.com/avanelsas/baredom) is a comprehensive web component
 library. [BareBuild](https://github.com/avanelsas/barebuild) is a small runtime that drives web
 components from server state alone. [BareReplay](https://github.com/avanelsas/barereplay) is a
@@ -204,7 +206,7 @@ action.
 
 ```clojure
 ;; deps.edn
-{:deps {com.github.avanelsas/barebuild {:mvn/version "0.6.0"}}}
+{:deps {com.github.avanelsas/barebuild {:mvn/version "0.7.0"}}}
 ```
 
 This brings `com.github.avanelsas/baredom` with it, since BareBuild uses a handful of its

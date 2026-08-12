@@ -31,7 +31,8 @@
    [demo.x-table-consumer.x-table-consumer :as x-table-consumer]
    [demo.x-task-form-consumer.x-task-form-consumer :as x-task-form-consumer]
    [demo.x-task-quickadd-consumer.x-task-quickadd-consumer :as x-task-quickadd-consumer]
-   [barebuild.core :as core]))
+   [barebuild.core :as core]
+   [barereplay.init :as barereplay]))
 
 (def ^:private registrations
   "Every element the demo page needs defined: the BareDOM components it drives, then the demo's
@@ -72,4 +73,5 @@
 (defn ^:export init []
   (doseq [register! registrations]
     (register!))
+  (barereplay/init!)
   (core/init))

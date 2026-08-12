@@ -1,6 +1,19 @@
 # BareBuild
 
-**Drives a [BareDOM](https://github.com/avanelsas/baredom) Web Component UI from server state alone.**
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/assets/bare_darkmode.svg">
+    <source media="(prefers-color-scheme: light)" srcset="public/assets/bare_lightmode.svg">
+    <img alt="Project Logo" src="public/assets/bare_lightmode.svg" width="160">
+  </picture>
+</p>
+
+**Drives any Web Component UI from server state alone.**
+
+**Part of a set.** [BareDOM](https://github.com/avanelsas/baredom) is a comprehensive web component
+library. [BareBuild](https://github.com/avanelsas/barebuild) is a small runtime that drives web
+components from server state alone. [BareReplay](https://github.com/avanelsas/barereplay) is a
+powerful time-travel replay debugger for BareBuild-based apps.
 
 A BareBuild client carries no business logic, no store and no runtime framework. You write a pure
 projection and a render function, and BareBuild owns the rest of the lifecycle. That keeps the client

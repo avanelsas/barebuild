@@ -56,8 +56,9 @@ positional command (server-owned rank), and only relocates the card once the ser
 optimism. Creating a project and quick-adding a task are ordinary create writes, both observed
 back through a refetch.
 
-[BareReplay](https://github.com/avanelsas/barereplay) is a time-travel dock for BareBuild: scrub,
-step, and jump through every event, and watch each resource reconstruct its past state.
+[BareReplay](https://github.com/avanelsas/barereplay), the time-travel dock, is wired into the
+demo app: scrub, step, and jump through every event, and watch each resource reconstruct its
+past state.
 
 ## To run
 

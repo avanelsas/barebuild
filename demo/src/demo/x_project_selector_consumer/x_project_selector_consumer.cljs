@@ -3,6 +3,7 @@
   writes tasks.project to the URL and refetches."
   (:require
    [barebuild.consumer-resource :as consumer-resource]
+   [barereplay.dock :as dock]
    [demo.url :as url]
    [demo.x-project-selector-consumer.model :as model]
    [baredom.utils.dom :as du]))
@@ -52,7 +53,8 @@
 
 (defn- on-connect! [^js x-select ^js el]
   (.addEventListener x-select "select-change" (fn [e] (on-select-change! el e)))
-  (.addEventListener js/window "popstate" (fn [_e] (show-selection! x-select))))
+  (.addEventListener js/window "popstate" (fn [_e] (show-selection! x-select)))
+  (.addEventListener js/window dock/url-changed-event (fn [_e] (show-selection! x-select))))
 
 (defn init! []
   (consumer-resource/register!

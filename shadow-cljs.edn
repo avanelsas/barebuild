@@ -9,6 +9,12 @@
                  :exclusions [com.github.avanelsas/barebuild
                               com.github.avanelsas/baredom]]]
 
+ ;; Serves the demo pages over http during `watch lib`, at /demo/index.html and /demo/board.html.
+ ;; They must be served rather than opened as files: the shadow-cljs REPL client builds its
+ ;; websocket URL from the document host, which a file:// page does not have. The API stays on the
+ ;; bb dev-server at :8090, cross-origin, which its CORS headers already allow.
+ :dev-http {8081 "."}
+
  :builds
  {:lib
   {:target    :esm

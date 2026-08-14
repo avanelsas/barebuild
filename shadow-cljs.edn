@@ -4,7 +4,7 @@
 ;; which ships src/ alone. Its own barebuild dependency is excluded because that is this
 ;; repo's source: both on the classpath would duplicate every barebuild namespace.
 {:source-paths ["src" "test" "demo/src" "demo/test"]
- :dependencies [[com.github.avanelsas/baredom "3.7.0"]
+ :dependencies [[com.github.avanelsas/baredom "3.8.0"]
                 [com.github.avanelsas/barereplay "0.4.0"
                  :exclusions [com.github.avanelsas/barebuild
                               com.github.avanelsas/baredom]]]

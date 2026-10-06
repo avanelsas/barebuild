@@ -65,13 +65,16 @@
     (str "repeat(" (count columns) ",minmax(0,1fr)) max-content")
     "max-content"))
 
-(defn reconcile-plan
-  "The ids to remove, and the desired order flagged new or existing."
-  [old-ids new-rows]
-  (let [old-set (set old-ids)
-        new-set (set (map (comp str :id) new-rows))]
-    {:remove (vec (remove new-set old-ids))
-     :order  (mapv #(assoc % :new? (not (old-set (str (:id %))))) new-rows)}))
+(defn row-key
+  "The key of a row: its id as text."
+  [row]
+  (str (:id row)))
+
+(defn page-bar
+  "What the page bar shows, or nil when there is at most one page to reach."
+  [{:keys [page total-pages]}]
+  (when (and total-pages (> total-pages 1))
+    {:page page :total-pages total-pages}))
 
 (defn translate-gesture
   [field-key direction]

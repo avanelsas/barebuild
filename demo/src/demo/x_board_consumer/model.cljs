@@ -33,22 +33,20 @@
   [{:keys [accepted intent]}]
   [(:value accepted) (project-selected? intent)])
 
-(defn rows-by-id
-  "The rows of `cols`, keyed by the string id `board-plan` uses."
-  [cols]
-  (into {} (map (fn [row] [(str (get row "id")) row])) (mapcat val cols)))
+(defn- row-id
+  "The key of a row: its id as text."
+  [row]
+  (str (get row "id")))
 
-(defn board-plan
-  "The DOM plan: `:order` is each status's card ids in order, `:remove` the ids no column claims.
-   Removal is decided board-wide, so a card that only changed column is moved, not rebuilt."
-  [present-ids cols]
-  (let [order (into {}
-                    (map (fn [[status rows]]
-                           [status (mapv (fn [row] (str (get row "id"))) rows)]))
-                    cols)
-        kept  (into #{} cat (vals order))]
-    {:order  order
-     :remove (vec (remove kept present-ids))}))
+(defn rows-by-id
+  "The rows of `cols`, by the key `order` gives them."
+  [cols]
+  (into {} (map (juxt row-id identity)) (mapcat val cols)))
+
+(defn order
+  "The card keys of each column, in order."
+  [cols]
+  (update-vals cols (partial mapv row-id)))
 
 (defn- name-hue
   "A stable hue (0-359) per name, so an assignee keeps one avatar colour. The modulo folds into
@@ -60,13 +58,20 @@
 (defn card-vm
   "What a card renders."
   [row]
-  (let [assignee (str (or (get row "assigneeName") (get row "owner")))]
-    {:value    (str (get row "id"))
+  (let [assignee (str (or (get row "assigneeName") (get row "owner")))
+        project  (str (get row "projectName"))]
+    {:value    (row-id row)
      :title    (get row "title")
      :assignee assignee
-     :project  (str (get row "projectName"))
+     :project  project
+     :subtitle (str assignee " · " project)
      :initial  (if (seq assignee) (subs assignee 0 1) "?")
      :hue      (name-hue assignee)}))
+
+(defn cards
+  "What each card of `cols` renders, by the key `order` gives it."
+  [cols]
+  (update-vals (rows-by-id cols) card-vm))
 
 (defn translate-drop-gesture
   "A drop as a move: a positional command carrying only the destination, not a record edit."

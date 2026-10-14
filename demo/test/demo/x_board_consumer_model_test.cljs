@@ -41,32 +41,26 @@
       (is (not= (model/render-key selected)
                 (model/render-key (assoc selected :accepted {:value []})))))))
 
-(deftest rows-by-id-keys-rows-the-way-board-plan-names-them
+(deftest rows-by-id-keys-rows-the-way-order-names-them
   (let [cols (model/columns accepted)]
     (testing "a string id finds its row, the server's id being a number"
       (is (= "A" (get-in (model/rows-by-id cols) ["1" "title"]))))
-    (testing "every card the plan orders can be looked up"
-      (is (= (set (mapcat val (:order (model/board-plan [] cols))))
+    (testing "every card the order names can be looked up"
+      (is (= (set (mapcat val (model/order cols)))
              (set (keys (model/rows-by-id cols))))))))
 
-(deftest board-plan-orders-each-column-and-drops-only-what-left-the-board
+(deftest order-gives-the-card-keys-of-each-column
   (let [cols (model/columns {:value rows})]
-    (testing "cards as the string ids the DOM carries, in column order"
-      (is (= {"todo" ["2" "1"] "doing" [] "done" ["3"]} (:order (model/board-plan [] cols)))))
-    (testing "a card no column claims is dropped"
-      (is (= ["9"] (:remove (model/board-plan ["1" "2" "3" "9"] cols)))))
-    (testing "a card that only changed column is moved, not rebuilt, a rebuilt card having
-              nowhere to animate from"
+    (testing "cards as the string keys the DOM carries, in column order"
+      (is (= {"todo" ["2" "1"] "doing" [] "done" ["3"]} (model/order cols))))
+    (testing "a card that changed column is named by its new column, in rank order"
       (let [moved (model/columns {:value (mapv #(if (= 1 (get % "id"))
                                                   (assoc % "status" "done")
                                                   %)
                                                rows)})]
-        (is (= ["3" "1"] (get-in (model/board-plan ["1" "2" "3"] moved) [:order "done"]))
-            "the card is claimed by its new column, in rank order")
-        (is (= [] (:remove (model/board-plan ["1" "2" "3"] moved)))
-            "and so nothing is removed")))
-    (testing "an empty board drops everything"
-      (is (= ["1" "2"] (:remove (model/board-plan ["1" "2"] {})))))))
+        (is (= ["3" "1"] (get (model/order moved) "done")))))
+    (testing "an empty board has no columns"
+      (is (= {} (model/order {}))))))
 
 (deftest card-vm-projects-card-fields
   (let [vm (model/card-vm (first rows))]
@@ -74,7 +68,14 @@
     (is (= "A" (:title vm)))
     (is (= "Alice" (:assignee vm)))
     (is (= "Web" (:project vm)))
-    (is (= "A" (:initial vm)) "the avatar initial is the assignee's first letter")))
+    (is (= "A" (:initial vm)) "the avatar initial is the assignee's first letter")
+    (is (= "Alice · Web" (:subtitle vm))
+        "the line below the title names the assignee and the project")))
+
+(deftest cards-gives-what-each-card-renders-by-its-key
+  (let [cols (model/columns {:value rows})]
+    (is (= (set (mapcat val (model/order cols))) (set (keys (model/cards cols)))))
+    (is (= (model/card-vm (first rows)) (get (model/cards cols) "1")))))
 
 (deftest card-vm-falls-back-to-owner-when-no-user
   (is (= "Wendy"

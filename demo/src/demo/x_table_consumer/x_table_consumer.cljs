@@ -1,193 +1,158 @@
 (ns demo.x-table-consumer.x-table-consumer
   (:require
    [barebuild.consumer-resource :as consumer-resource]
+   [baredom.utils.dom :as du]
+   [baremirror.alpha.events :as events]
+   [baremirror.alpha.parts :as parts]
+   [baremirror.alpha.places :as places]
+   [baremirror.alpha.template :as template]
    [demo.alert :as alert]
-   [demo.selector :as selector]
    [demo.task-edit :as task-edit]
-   [demo.x-table-consumer.model :as model]
-   [baredom.utils.dom :as du]))
+   [demo.x-table-consumer.model :as model]))
 
-(def ^:private k-field-key "data-field-key")
-(def ^:private k-row-id "data-row-id")
+(def ^:private k-listening "__xTableConsumerListening")
 
-(defn- consumer-of [^js e]
-  (.closest (.-currentTarget e) model/tag-name))
+(def ^:private header-row
+  [:x-table-row {:data-x-part "header"}
+   [:x-table-cell {:type "header"} "Actions"]])
 
-(defn- request-page!
-  [^js e]
-  (consumer-resource/submit-intent!
-   (consumer-of e)
-   (model/translate-pagination-gesture (.. e -detail -page))))
+(def ^:private header-cell
+  (template/split :header
+                  [:x-table-cell {:type           "header"
+                                  :scope          "col"
+                                  :sortable       true
+                                  :sort-direction :sort-direction
+                                  :data-x-part    "sort"}
+                   :key]))
 
-(defn- create-x-pagination!
-  [page total-pages]
-  (let [pagination (.createElement js/document "x-pagination")]
-    (du/set-attr! pagination "page" page)
-    (du/set-attr! pagination "total-pages" total-pages)
-    (du/set-attr! pagination "size" "md")
-    (.addEventListener pagination "page-change" request-page!)
-    pagination))
+(def ^:private body-row
+  [:x-table-row
+   [:x-table-cell
+    [:span {:style "display:inline-flex;gap:0.2rem"}
+     [:x-button {:variant "primary" :size "sm" :data-x-part "edit"} "Edit"]
+     [:x-button {:variant "danger" :size "sm" :data-x-part "delete"} "Delete"]]]])
 
-(defn- apply-pagination!
+(def ^:private make-header-cell! (parts/node-maker (:fixed header-cell)))
+
+(def ^:private make-body-row! (parts/node-maker body-row))
+
+(def ^:private make-body-cell! (parts/node-maker [:x-table-cell]))
+
+(def ^:private make-page-bar! (parts/node-maker [:x-pagination {:size "md" :data-x-part "pages"}]))
+
+(defn- sort-of [origin ^js e]
+  {:field     (peek (:key-path origin))
+   :direction (.. e -detail -direction)})
+
+(defn- page-of [_origin ^js e]
+  (.. e -detail -page))
+
+;; x-table stops x-table-cell-sort and sends x-table-sort in its place, which names a column
+;; index and no cell. So the sort is listened for on the header row, below the table.
+(def ^:private header-events
+  {["x-table-cell-sort" "sort"] [:sort sort-of]})
+
+(def ^:private body-events
+  {["press" "edit"]        :edit
+   ["press" "delete"]      :delete
+   ["page-change" "pages"] [:page page-of]})
+
+(defn- sort! [^js this {:keys [field direction]}]
+  (consumer-resource/submit-intent! this (model/translate-gesture field direction)))
+
+(defn- page! [^js this page]
+  (consumer-resource/submit-intent! this (model/translate-pagination-gesture page)))
+
+(defn- delete! [^js this id]
+  (consumer-resource/submit-write! this {:op :delete :id id}))
+
+(def ^:private effects
+  {:sort   sort!
+   :page   page!
+   :edit   task-edit/request!
+   :delete delete!})
+
+(defn- perform! [^js this [meaning arg]]
+  ((effects meaning) this arg))
+
+(defn- cells-of
+  "The container of the keyed cells of `row`. They go before its last cell, the actions."
+  [^js row]
+  {:cells {:parent row :before (.-lastElementChild row)}})
+
+(defn- sync-cells!
+  "Brings the keyed cells of `row` to the fields of `columns`. Returns the cell of each field."
+  [^js row columns make-cell!]
+  (places/sync! (cells-of row) {:cells (mapv :key columns)} make-cell!))
+
+(defn- header-of
+  "The header row of `table`, or nil."
+  [^js table]
+  (get (parts/read-parts table) "header"))
+
+(defn- write-header-cell! [cell-nodes {field :key :as column}]
+  (parts/write-item! (cell-nodes field) header-cell column))
+
+(defn- render-header! [^js table columns]
+  (let [cell-nodes (sync-cells! (header-of table) columns make-header-cell!)]
+    (run! (partial write-header-cell! cell-nodes) columns)))
+
+(defn- write-body-cell! [cells [field ^js cell-node]]
+  (parts/set-text! cell-node (get cells field)))
+
+(defn- render-row! [columns row-nodes {:keys [cells] :as row}]
+  (run! (partial write-body-cell! cells)
+        (sync-cells! (row-nodes (model/row-key row)) columns make-body-cell!)))
+
+(defn- render-rows! [^js table columns rows]
+  (let [row-nodes (places/sync! {:rows {:parent table}} {:rows (mapv model/row-key rows)}
+                                make-body-row!)]
+    (run! (partial render-row! columns row-nodes) rows)))
+
+(defn- render-page-bar!
   "One page bar while there is more than one page to reach, none otherwise."
-  [{:keys [page total-pages]} ^js parent]
-  (let [existing (.querySelector parent "x-pagination")]
-    (cond
-      (or (nil? total-pages) (<= total-pages 1)) (when existing (.remove existing))
-      existing                                   (du/set-attr! existing "page" page)
-      :else                                      (.appendChild parent (create-x-pagination! page total-pages)))))
-
-(defn- request-sort!
-  [^js e]
-  (consumer-resource/submit-intent!
-   (consumer-of e)
-   (model/translate-gesture (du/get-attr (.-currentTarget e) k-field-key)
-                            (.. e -detail -direction))))
-
-(defn- delete-row-request! [^js e]
-  (consumer-resource/submit-write!
-   (consumer-of e)
-   {:op :delete :id (du/get-attr (.-currentTarget e) k-row-id)}))
-
-(defn- edit-row-request! [^js e]
-  (task-edit/request! (.-currentTarget e) (du/get-attr (.-currentTarget e) k-row-id)))
-
-(defn- create-body-cell!
-  "A cell showing `text`, tagged with its field key so re-render can find it."
-  [text field-key]
-  (let [cell (.createElement js/document "x-table-cell")]
-    (du/set-attr! cell k-field-key field-key)
-    (set! (.-textContent cell) (str text))
-    cell))
-
-(defn- create-header-cell!
-  "A body cell that also announces its sort and asks for another."
-  [field-key sort-direction]
-  (let [cell (create-body-cell! field-key field-key)]
-    (du/set-attr! cell "type" "header")
-    (du/set-attr! cell "scope" "col")
-    (du/set-attr! cell "sortable" "")
-    (du/set-attr! cell "sort-direction" sort-direction)
-    (.addEventListener cell "x-table-cell-sort" request-sort!)
-    cell))
-
-;; What a row offers, in order. A third action is a row here.
-(def ^:private row-actions
-  [{:label "Edit"   :variant "primary" :on-press edit-row-request!}
-   {:label "Delete" :variant "danger"  :on-press delete-row-request!}])
-
-(defn- create-action-button!
-  [{:keys [label variant on-press]} id]
-  (let [button (.createElement js/document "x-button")]
-    (du/set-attr! button "variant" variant)
-    (du/set-attr! button "size" "sm")
-    (du/set-attr! button k-row-id (str id))
-    (set! (.-textContent button) label)
-    (.addEventListener button "press" on-press)
-    button))
-
-(defn- create-actions!
-  "The row's buttons, side by side."
-  [id]
-  (let [actions (.createElement js/document "span")]
-    (.setProperty (.-style actions) "display" "inline-flex")
-    (.setProperty (.-style actions) "gap" "0.2rem")
-    (doseq [action row-actions]
-      (.appendChild actions (create-action-button! action id)))
-    actions))
-
-(defn- create-header-actions-cell! []
-  (let [cell (.createElement js/document "x-table-cell")]
-    (du/set-attr! cell "type" "header")
-    (set! (.-textContent cell) "Actions")
-    cell))
-
-(defn- create-body-actions-cell! [id]
-  (doto (.createElement js/document "x-table-cell")
-    (.appendChild (create-actions! id))))
-
-(defn- create-header-row!
-  [columns]
-  (let [row (.createElement js/document "x-table-row")]
-    (doseq [{:keys [key sort-direction]} columns]
-      (.appendChild row (create-header-cell! key sort-direction)))
-    (.appendChild row (create-header-actions-cell!))
-    row))
-
-(defn- create-body-row!
-  [cells columns id]
-  (let [row (.createElement js/document "x-table-row")]
-    (du/set-attr! row k-row-id (str id))
-    (doseq [{k :key} columns]
-      (.appendChild row (create-body-cell! (get cells k) k)))
-    (.appendChild row (create-body-actions-cell! id))
-    row))
-
-(defn- current-row-ids [^js table]
-  (->> (.querySelectorAll table (str "x-table-row[" k-row-id "]"))
-    array-seq
-    (mapv #(du/get-attr % k-row-id))))
-
-(defn- find-row [^js table id]
-  (.querySelector table (str "x-table-row" (selector/attr= k-row-id id))))
-
-(defn- find-cell [^js row key]
-  (.querySelector row (str "x-table-cell" (selector/attr= k-field-key key))))
-
-(defn- ensure-header! [^js table columns]
-  ;; written every render, not only when the header is built. x-table's change guard makes the
-  ;; repeats free.
-  (du/set-attr! table "columns" (model/grid-template columns))
-  (if-let [header (.querySelector table (str "x-table-row:not([" k-row-id "])"))]
-    (doseq [{:keys [key sort-direction]} columns]
-      (when-let [cell (find-cell header key)]
-        (du/set-attr! cell "sort-direction" sort-direction)))
-    (.appendChild table (create-header-row! columns))))
-
-(defn- update-cells! [^js row cells columns]
-  (doseq [{:keys [key]} columns]
-    (when-let [^js cell (find-cell row key)]
-      (let [text (str (get cells key))]
-        (when (not= (.-textContent cell) text)
-          (set! (.-textContent cell) text))))))
-
-(defn- row-element [^js table columns {:keys [id cells new?]}]
-  (if new?
-    (create-body-row! cells columns id)
-    (doto (find-row table (str id))
-      (update-cells! cells columns))))
-
-(defn- apply-plan!
-  [^js table {:keys [remove order]} columns]
-  (ensure-header! table columns)
-  (doseq [id remove]
-    (when-let [row (find-row table id)] (.remove row)))
-  (loop [[row-vm & rest-vms] (reverse order)
-         ^js anchor          nil]
-    (when row-vm
-      (let [^js el (row-element table columns row-vm)]
-        (.insertBefore table el anchor)
-        (recur rest-vms el)))))
-
-(defn- render-table!
-  [{:keys [columns rows]} ^js table]
-  (when table
-    (apply-plan! table (model/reconcile-plan (current-row-ids table) rows) columns)))
+  [^js this page-info]
+  (let [shown (model/page-bar page-info)
+        nodes (places/sync! {:bar {:parent this}} {:bar (if shown ["pages"] [])} make-page-bar!)]
+    (when shown
+      (parts/set-attrs! (nodes "pages") shown))))
 
 (defn- render! [^js table {accepted :accepted} ^js this]
-  ;; a header built from an empty column list would be fixed at one column for good
   (when accepted
-    (render-table! (model/accepted-response->view-model accepted) table)
-    (apply-pagination! (:page-info accepted) this)))
+    (let [{:keys [columns rows]} (model/accepted-response->view-model accepted)]
+      (parts/set-attrs! table {:columns (model/grid-template columns)})
+      (render-header! table columns)
+      (render-rows! table columns rows)
+      (render-page-bar! this (:page-info accepted)))))
 
 (defn- on-failure! [_child {:keys [failure]} ^js this]
   (if failure
     (alert/show! this (model/failure-message failure))
     (alert/clear! this)))
 
+(defn- header-row!
+  "The header row of `table`. One is made when the table has none."
+  [^js table]
+  (or (header-of table)
+      (let [header (parts/make-node! header-row)]
+        (.append table header)
+        header)))
+
+(defn- listen-once!
+  "Gives the header row and the consumer their listeners, once in the life of the consumer."
+  [^js header ^js this]
+  (when-not (du/initialized? this k-listening)
+    (du/mark-initialized! this k-listening)
+    (events/listen! header {:dispatch! (partial perform! this) :events header-events})
+    (events/listen! this {:dispatch! (partial perform! this) :events body-events})))
+
+(defn- on-connect! [^js table ^js this]
+  (listen-once! (header-row! table) this))
+
 (defn init! []
   (consumer-resource/register!
    {:tag        model/tag-name
     :child-tag  "x-table"
     :render     render!
-    :on-failure on-failure!}))
+    :on-failure on-failure!
+    :on-connect on-connect!}))

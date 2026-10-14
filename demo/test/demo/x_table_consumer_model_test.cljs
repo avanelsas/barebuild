@@ -68,24 +68,17 @@
          (model/translate-pagination-gesture "3"))
       "page gesture -> a :page query-patch classified :navigation (pushes history)"))
 
-(deftest reconcile-plan-reorders-removes-and-flags-new
-  (let [plan (model/reconcile-plan ["1" "2" "3"]
-                                   [{:id 3 :cells {}} {:id 1 :cells {}} {:id 4 :cells {}}])]
-    (is (= ["2"] (:remove plan)) "an id no longer present is removed")
-    (is (= [3 1 4] (map :id (:order plan))) "order follows the desired rows")
-    (is (= [false false true] (map :new? (:order plan))) "only the unseen id is flagged new")))
+(deftest row-key-is-the-id-of-a-row-as-text
+  (is (= "1" (model/row-key {:id 1 :cells {}})))
+  (is (= "a" (model/row-key {:id "a" :cells {}}))))
 
-(deftest reconcile-plan-matches-numeric-ids-to-string-dom-ids
-  (let [plan (model/reconcile-plan ["1"] [{:id 1 :cells {}}])]
-    (is (empty? (:remove plan)) "numeric row id matches the string data-row-id")
-    (is (= [false] (map :new? (:order plan))) "so the row counts as existing, not new")))
-
-(deftest reconcile-plan-handles-empty-sides
-  (is (= {:remove [] :order []} (model/reconcile-plan [] [])))
-  (is (= [true] (map :new? (:order (model/reconcile-plan [] [{:id 1 :cells {}}]))))
-      "into an empty table every row is new")
-  (is (= ["1" "2"] (:remove (model/reconcile-plan ["1" "2"] [])))
-      "clearing the rows removes them all"))
+(deftest page-bar-shows-a-page-only-when-there-is-another-to-reach
+  (testing "more than one page"
+    (is (= {:page 2 :total-pages 3} (model/page-bar {:page 2 :total-pages 3}))))
+  (testing "one page"
+    (is (nil? (model/page-bar {:page 1 :total-pages 1}))))
+  (testing "no page count"
+    (is (nil? (model/page-bar {})))))
 
 (deftest cells-show-the-label-a-field-declares-for-its-value
   (let [labelled (assoc-in accepted [:shape :fields 3 :options]

@@ -1,13 +1,18 @@
 ;; Dependency versions are declared here and again in deps.edn, which says what the
 ;; published jar depends on. Keep the two in step.
-;; barereplay is a demo-only dependency and is excluded from the published jar by build.clj,
-;; which ships src/ alone. Its own barebuild dependency is excluded because that is this
-;; repo's source: both on the classpath would duplicate every barebuild namespace.
+;; barereplay and bareprobe are demo-only dependencies and are excluded from the published jar
+;; by build.clj, which ships src/ alone. Their own barebuild dependency is excluded because that
+;; is this repo's source: both on the classpath would duplicate every barebuild namespace.
+;; bareprobe can be required from the demo's browser REPL.
 {:source-paths ["src" "test" "demo/src" "demo/test"]
  :dependencies [[com.github.avanelsas/baredom "4.5.0"]
                 [com.github.avanelsas/barereplay "0.4.0"
                  :exclusions [com.github.avanelsas/barebuild
-                              com.github.avanelsas/baredom]]]
+                              com.github.avanelsas/baredom]]
+                [com.github.avanelsas/bareprobe "0.1.0"
+                 :exclusions [com.github.avanelsas/barebuild
+                              com.github.avanelsas/baredom
+                              com.github.avanelsas/barereplay]]]
 
  ;; Serves the demo pages over http during `watch lib`, at /demo/index.html and /demo/board.html.
  ;; They must be served rather than opened as files: the shadow-cljs REPL client builds its

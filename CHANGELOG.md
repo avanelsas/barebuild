@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- Depends on BareDOM 4.5.0 rather than 3.7.0. BareBuild's own code is unchanged, but an app that takes BareDOM through BareBuild moves to the 4.x line with it. See the BareDOM changelog for what 4.0 changes on a page.
+- Demo. The table and board consumers bring their nodes to the view with the BareMirror alpha that ships in BareDOM.
+- Demo. The BareReplay dock is back on the demo pages, and the pages are served over http during `watch`.
+
 ## 0.7.0
 
 - BareBuild now lives in its own repository, <https://github.com/avanelsas/barebuild>. The Clojars coordinate `com.github.avanelsas/barebuild` is unchanged, so nothing moves for a consumer. Release tags are `vX.Y.Z` rather than `barebuild-vX.Y.Z`.

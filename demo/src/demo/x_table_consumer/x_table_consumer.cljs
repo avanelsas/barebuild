@@ -2,8 +2,10 @@
   (:require
    [barebuild.consumer-resource :as consumer-resource]
    [baredom.utils.dom :as du]
-   [baremirror.core :as mirror]
-   [baremirror.template :as template]
+   [baremirror.alpha.events :as events]
+   [baremirror.alpha.parts :as parts]
+   [baremirror.alpha.places :as places]
+   [baremirror.alpha.template :as template]
    [demo.alert :as alert]
    [demo.task-edit :as task-edit]
    [demo.x-table-consumer.model :as model]))
@@ -30,11 +32,13 @@
      [:x-button {:variant "primary" :size "sm" :data-x-part "edit"} "Edit"]
      [:x-button {:variant "danger" :size "sm" :data-x-part "delete"} "Delete"]]]])
 
-(def ^:private body-cell
-  [:x-table-cell])
+(def ^:private make-header-cell! (parts/node-maker (:fixed header-cell)))
 
-(def ^:private page-bar-template
-  [:x-pagination {:size "md" :data-x-part "pages"}])
+(def ^:private make-body-row! (parts/node-maker body-row))
+
+(def ^:private make-body-cell! (parts/node-maker [:x-table-cell]))
+
+(def ^:private make-page-bar! (parts/node-maker [:x-pagination {:size "md" :data-x-part "pages"}]))
 
 (defn- sort-of [origin ^js e]
   {:field     (peek (:key-path origin))
@@ -48,7 +52,7 @@
 (def ^:private header-events
   {["x-table-cell-sort" "sort"] [:sort sort-of]})
 
-(def ^:private events
+(def ^:private body-events
   {["press" "edit"]        :edit
    ["press" "delete"]      :delete
    ["page-change" "pages"] [:page page-of]})
@@ -79,41 +83,29 @@
 (defn- sync-cells!
   "Brings the keyed cells of `row` to the fields of `columns`. Returns the cell of each field."
   [^js row columns make-cell!]
-  (mirror/sync! (cells-of row) {:cells (mapv :key columns)} make-cell!))
-
-(defn- make-header-cell! [_key]
-  (mirror/make-node! (:fixed header-cell)))
-
-(defn- make-body-cell! [_key]
-  (mirror/make-node! body-cell))
-
-(defn- make-body-row! [_key]
-  (mirror/make-node! body-row))
-
-(defn- make-page-bar! [_key]
-  (mirror/make-node! page-bar-template))
+  (places/sync! (cells-of row) {:cells (mapv :key columns)} make-cell!))
 
 (defn- header-of
   "The header row of `table`, or nil."
   [^js table]
-  (get (mirror/read-parts table) "header"))
+  (get (parts/read-parts table) "header"))
 
 (defn- write-header-cell! [cell-nodes {field :key :as column}]
-  (mirror/write! (mirror/read-parts (cell-nodes field)) (template/writes header-cell column)))
+  (parts/write-item! (cell-nodes field) header-cell column))
 
 (defn- render-header! [^js table columns]
   (let [cell-nodes (sync-cells! (header-of table) columns make-header-cell!)]
     (run! (partial write-header-cell! cell-nodes) columns)))
 
 (defn- write-body-cell! [cells [field ^js cell-node]]
-  (mirror/set-text! cell-node (get cells field)))
+  (parts/set-text! cell-node (get cells field)))
 
 (defn- render-row! [columns row-nodes {:keys [cells] :as row}]
   (run! (partial write-body-cell! cells)
         (sync-cells! (row-nodes (model/row-key row)) columns make-body-cell!)))
 
 (defn- render-rows! [^js table columns rows]
-  (let [row-nodes (mirror/sync! {:rows {:parent table}} {:rows (mapv model/row-key rows)}
+  (let [row-nodes (places/sync! {:rows {:parent table}} {:rows (mapv model/row-key rows)}
                                 make-body-row!)]
     (run! (partial render-row! columns row-nodes) rows)))
 
@@ -121,14 +113,14 @@
   "One page bar while there is more than one page to reach, none otherwise."
   [^js this page-info]
   (let [shown (model/page-bar page-info)
-        nodes (mirror/sync! {:bar {:parent this}} {:bar (if shown ["pages"] [])} make-page-bar!)]
+        nodes (places/sync! {:bar {:parent this}} {:bar (if shown ["pages"] [])} make-page-bar!)]
     (when shown
-      (mirror/set-attrs! (nodes "pages") shown))))
+      (parts/set-attrs! (nodes "pages") shown))))
 
 (defn- render! [^js table {accepted :accepted} ^js this]
   (when accepted
     (let [{:keys [columns rows]} (model/accepted-response->view-model accepted)]
-      (mirror/set-attrs! table {:columns (model/grid-template columns)})
+      (parts/set-attrs! table {:columns (model/grid-template columns)})
       (render-header! table columns)
       (render-rows! table columns rows)
       (render-page-bar! this (:page-info accepted)))))
@@ -142,7 +134,7 @@
   "The header row of `table`. One is made when the table has none."
   [^js table]
   (or (header-of table)
-      (let [header (mirror/make-node! header-row)]
+      (let [header (parts/make-node! header-row)]
         (.append table header)
         header)))
 
@@ -151,8 +143,8 @@
   [^js header ^js this]
   (when-not (du/initialized? this k-listening)
     (du/mark-initialized! this k-listening)
-    (mirror/listen! header {:dispatch! (partial perform! this) :events header-events})
-    (mirror/listen! this {:dispatch! (partial perform! this) :events events})))
+    (events/listen! header {:dispatch! (partial perform! this) :events header-events})
+    (events/listen! this {:dispatch! (partial perform! this) :events body-events})))
 
 (defn- on-connect! [^js table ^js this]
   (listen-once! (header-row! table) this))

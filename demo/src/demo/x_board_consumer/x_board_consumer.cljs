@@ -3,8 +3,10 @@
   (:require
    [barebuild.consumer-resource :as consumer-resource]
    [baredom.utils.dom :as du]
-   [baremirror.core :as mirror]
-   [baremirror.template :as template]
+   [baremirror.alpha.events :as events]
+   [baremirror.alpha.parts :as parts]
+   [baremirror.alpha.places :as places]
+   [baremirror.alpha.template :as template]
    [demo.x-board-consumer.model :as model]))
 
 (def ^:private k-pending-zone "__xBoardPendingZone")
@@ -31,7 +33,7 @@
      :to    (.-to detail)
      :index (.-index detail)}))
 
-(def ^:private events
+(def ^:private zone-events
   {["x-drop-zone-drop" "zone"] [:drop drop-of]})
 
 ;; --- render: the cards of each zone --------------------------------------------
@@ -44,17 +46,16 @@
   [^js this]
   (into {} (map zone-container) (array-seq (.querySelectorAll this "x-drop-zone"))))
 
-(defn- make-card! [_id]
-  (mirror/make-node! (:fixed card)))
+(def ^:private make-card! (parts/node-maker (:fixed card)))
 
 (defn- write-card! [cards [id ^js card-node]]
-  (mirror/write! (mirror/read-parts card-node) (template/writes card (cards id))))
+  (parts/write-item! card-node card (cards id)))
 
 (defn- place-cards!
   "Brings the cards of every zone to `cols`. A card that changes column keeps its node."
   [^js this cols]
   (run! (partial write-card! (model/cards cols))
-        (mirror/sync! (zone-containers this) (model/order cols) make-card!)))
+        (places/sync! (zone-containers this) (model/order cols) make-card!)))
 
 ;; --- drop: reserve -> write -> release ----------------------------------------
 
@@ -99,14 +100,14 @@
   [^js this]
   (when-not (du/initialized? this k-listening)
     (du/mark-initialized! this k-listening)
-    (mirror/listen! this {:dispatch! (partial perform! this) :events events})))
+    (events/listen! this {:dispatch! (partial perform! this) :events zone-events})))
 
 (defn- on-connect! [_child ^js this]
   (listen-once! this))
 
 (defn- render!
   [_child {:keys [intent] :as view} ^js this]
-  (mirror/set-attrs! this {:data-empty (if (model/project-selected? intent) "false" "true")})
+  (parts/set-attrs! this {:data-empty (if (model/project-selected? intent) "false" "true")})
   (when-not (reserved-zone this)
     (place-cards! this (model/columns-for view))))
 

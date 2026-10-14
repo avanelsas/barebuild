@@ -16,6 +16,7 @@
 library. [BareBuild](https://github.com/avanelsas/barebuild) is a small runtime that drives web
 components from server state alone. [BareReplay](https://github.com/avanelsas/barereplay) is a
 powerful time-travel replay debugger for BareBuild-based apps.
+[BareProbe](https://github.com/avanelsas/bareprobe) reads the same log from a REPL.
 
 A BareBuild client carries no business logic, no store and no runtime framework. You write a pure
 projection and a render function, and BareBuild owns the rest of the lifecycle. That keeps the client

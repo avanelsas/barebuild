@@ -207,7 +207,7 @@ action.
 
 ```clojure
 ;; deps.edn
-{:deps {com.github.avanelsas/barebuild {:mvn/version "0.8.0"}}}
+{:deps {com.github.avanelsas/barebuild {:mvn/version "0.9.0"}}}
 ```
 
 This brings `com.github.avanelsas/baredom` with it, since BareBuild uses a handful of its

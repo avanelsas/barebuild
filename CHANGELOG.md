@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0
+
+- Depends on BareDOM 4.11.0 rather than 4.5.0. BareBuild's own code is unchanged, but an app that takes BareDOM through BareBuild gets what 4.6 to 4.11 change on a page. See the BareDOM changelog.
+- Demo. The table refuses a sort request, so a header shows a direction only once the server answers with it.
+- Demo. The project selector brings its options to the view with BareMirror.
+- Demo. Depends on BareReplay 0.5.0 and BareProbe 0.2.0.
+
 ## 0.8.0
 
 - Depends on BareDOM 4.5.0 rather than 3.7.0. BareBuild's own code is unchanged, but an app that takes BareDOM through BareBuild moves to the 4.x line with it. See the BareDOM changelog for what 4.0 changes on a page.

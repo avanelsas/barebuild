@@ -5,7 +5,7 @@
 ;; is this repo's source: both on the classpath would duplicate every barebuild namespace.
 ;; bareprobe can be required from the demo's browser REPL.
 {:source-paths ["src" "test" "demo/src" "demo/test"]
- :dependencies [[com.github.avanelsas/baredom "4.5.0"]
+ :dependencies [[com.github.avanelsas/baredom "4.11.0"]
                 [com.github.avanelsas/barereplay "0.5.0"
                  :exclusions [com.github.avanelsas/barebuild
                               com.github.avanelsas/baredom]]

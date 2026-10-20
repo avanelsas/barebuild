@@ -1,6 +1,7 @@
 (ns demo.x-table-consumer.x-table-consumer
   (:require
    [barebuild.consumer-resource :as consumer-resource]
+   [baredom.requests :as requests]
    [baredom.utils.dom :as du]
    [baremirror.alpha.events :as events]
    [baremirror.alpha.parts :as parts]
@@ -47,15 +48,11 @@
 (defn- page-of [_origin ^js e]
   (.. e -detail -page))
 
-;; x-table stops x-table-cell-sort and sends x-table-sort in its place, which names a column
-;; index and no cell. So the sort is listened for on the header row, below the table.
-(def ^:private header-events
-  {["x-table-cell-sort" "sort"] [:sort sort-of]})
-
-(def ^:private body-events
-  {["press" "edit"]        :edit
-   ["press" "delete"]      :delete
-   ["page-change" "pages"] [:page page-of]})
+(def ^:private consumer-events
+  {["x-table-cell-sort" "sort"] [:sort sort-of]
+   ["press" "edit"]             :edit
+   ["press" "delete"]           :delete
+   ["page-change" "pages"]      [:page page-of]})
 
 (defn- sort! [^js this {:keys [field direction]}]
   (consumer-resource/submit-intent! this (model/translate-gesture field direction)))
@@ -130,24 +127,26 @@
     (alert/show! this (model/failure-message failure))
     (alert/clear! this)))
 
-(defn- header-row!
-  "The header row of `table`. One is made when the table has none."
+(defn- add-header-row!
+  "Gives `table` a header row when it has none."
   [^js table]
-  (or (header-of table)
-      (let [header (parts/make-node! header-row)]
-        (.append table header)
-        header)))
+  (when-not (header-of table)
+    (.append table (parts/make-node! header-row))))
 
 (defn- listen-once!
-  "Gives the header row and the consumer their listeners, once in the life of the consumer."
-  [^js header ^js this]
+  "Gives the consumer its listeners, once in its life."
+  [^js this]
   (when-not (du/initialized? this k-listening)
     (du/mark-initialized! this k-listening)
-    (events/listen! header {:dispatch! (partial perform! this) :events header-events})
-    (events/listen! this {:dispatch! (partial perform! this) :events body-events})))
+    ;; The dispatch is async, so the cell does not show the asked direction yet and the request
+    ;; is refused.
+    (events/listen! this {:dispatch!        (partial perform! this)
+                          :requested-values requests/requested-values
+                          :events           consumer-events})))
 
 (defn- on-connect! [^js table ^js this]
-  (listen-once! (header-row! table) this))
+  (add-header-row! table)
+  (listen-once! this))
 
 (defn init! []
   (consumer-resource/register!

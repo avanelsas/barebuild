@@ -9,7 +9,7 @@
                 [com.github.avanelsas/barereplay "0.6.0"
                  :exclusions [com.github.avanelsas/barebuild
                               com.github.avanelsas/baredom]]
-                [com.github.avanelsas/bareprobe "0.2.0"
+                [com.github.avanelsas/bareprobe "0.3.0"
                  :exclusions [com.github.avanelsas/barebuild
                               com.github.avanelsas/baredom
                               com.github.avanelsas/barereplay]]]
